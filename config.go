@@ -23,6 +23,7 @@ type SafeConfig struct {
 type HostConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+	CABundle string `yaml:"ca_bundle"`
 }
 
 func (sc *SafeConfig) ReloadConfig(configFile string) error {
@@ -50,12 +51,14 @@ func (sc *SafeConfig) HostConfigForTarget(target string) (*HostConfig, error) {
 		return &HostConfig{
 			Username: hostConfig.Username,
 			Password: hostConfig.Password,
+			CABundle: hostConfig.CABundle,
 		}, nil
 	}
 	if hostConfig, ok := sc.C.Hosts["default"]; ok {
 		return &HostConfig{
 			Username: hostConfig.Username,
 			Password: hostConfig.Password,
+			CABundle: hostConfig.CABundle,
 		}, nil
 	}
 	return &HostConfig{}, fmt.Errorf("no credentials found for target %s", target)

@@ -2,7 +2,11 @@ package collector
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -36,12 +40,12 @@ type RedfishCollector struct {
 }
 
 // NewRedfishCollector return RedfishCollector
-func NewRedfishCollector(host string, username string, password string) *RedfishCollector {
+func NewRedfishCollector(host string, username string, password string, caBundle string) *RedfishCollector {
 	var collectors map[string]prometheus.Collector
 
 	targetLogger := slog.Default().With(slog.String("target", host))
 
-	redfishClient, err := newRedfishClient(host, username, password)
+	redfishClient, err := newRedfishClient(host, username, password, caBundle)
 	if err != nil {
 		slog.Error("error creating redfish client", slog.Any("error", err))
 	} else {
@@ -103,15 +107,39 @@ func (r *RedfishCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(totalScrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
 }
 
-func newRedfishClient(host string, username string, password string) (*gofish.APIClient, error) {
-
+func newRedfishClient(host string, username string, password string, caBundle string) (*gofish.APIClient, error) {
 	url := fmt.Sprintf("https://%s", host)
+
+	var c *http.Client
+	if caBundle != "" {
+		pem, err := os.ReadFile(caBundle)
+		if err != nil {
+			return nil, err
+		}
+
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("failed to load CA bundle: %s", caBundle)
+		}
+
+		c = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: pool,
+				},
+			},
+		}
+	}
 
 	config := gofish.ClientConfig{
 		Endpoint: url,
 		Username: username,
 		Password: password,
-		Insecure: true,
+		HTTPClient: c,
 	}
 	redfishClient, err := gofish.Connect(config)
 	if err != nil {

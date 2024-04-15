@@ -98,7 +98,7 @@ func metricsHandler() http.HandlerFunc {
 			}
 		}
 
-		collector := collector.NewRedfishCollector(target, hostConfig.Username, hostConfig.Password)
+		collector := collector.NewRedfishCollector(target, hostConfig.Username, hostConfig.Password, hostConfig.CABundle)
 		registry.MustRegister(collector)
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
