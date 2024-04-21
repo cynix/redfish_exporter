@@ -210,7 +210,7 @@ func (s *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 			// process storage
 			storages, err := system.Storage()
 			if err != nil {
-				systemLogger.Error("error getting storage data from system", slog.String("operation", "system.Storage()"), slog.Any("eeror", err))
+				systemLogger.Warn("error getting storage data from system", slog.String("operation", "system.Storage()"), slog.Any("eeror", err))
 			} else if storages == nil {
 				systemLogger.Info("no storage data found", slog.String("operation", "system.Storage()"))
 			} else {
@@ -238,6 +238,7 @@ func (s *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 					}
 				}
 			}
+
 			// process pci devices
 			pcieDevices, err := system.PCIeDevices()
 			if err != nil {
@@ -254,7 +255,7 @@ func (s *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 			// process networkinterfaces
 			networkInterfaces, err := system.NetworkInterfaces()
 			if err != nil {
-				systemLogger.Error("error getting network interface data from system", slog.String("operation", "system.NetworkInterfaces()"), slog.Any("error", err))
+				systemLogger.Warn("error getting network interface data from system", slog.String("operation", "system.NetworkInterfaces()"), slog.Any("error", err))
 			} else if networkInterfaces == nil {
 				systemLogger.Info("no network interface data found", slog.String("operation", "system.NetworkInterfaces"))
 			} else {
