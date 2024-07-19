@@ -136,9 +136,9 @@ func newRedfishClient(host string, username string, password string, caBundle st
 	}
 
 	config := gofish.ClientConfig{
-		Endpoint: url,
-		Username: username,
-		Password: password,
+		Endpoint:   url,
+		Username:   username,
+		Password:   password,
 		HTTPClient: c,
 	}
 	redfishClient, err := gofish.Connect(config)
