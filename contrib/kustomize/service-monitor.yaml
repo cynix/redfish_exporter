@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redfish-monitor
+  labels:
+    app: redfish-exporter
+spec:
+  selector:
+    matchLabels:
+      app: redfish-exporter
+  endpoints:
+    - targetPort: 9610
+      path: /metrics

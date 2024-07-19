@@ -12,7 +12,8 @@
 *.out
 
 build/
-
+dist
+.envrc
 redfish_exporter
 
 # Editor backup files
@@ -23,3 +24,6 @@ config.yml
 
 # IDE files
 .vscode
+node_modules/
+package.json
+package-lock.json

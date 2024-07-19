@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -14,13 +15,13 @@ func TestParseLogLevel(t *testing.T) {
 	}{
 		{"debug", slog.LevelDebug},
 		{"info", slog.LevelInfo},
-		{"warning", slog.LevelWarn},
+		{"warn", slog.LevelWarn},
 		{"error", slog.LevelError},
 		{"unknown", slog.LevelInfo}, // default level
 	}
 
 	for _, tc := range testCases {
 		actual := parseLogLevel(tc.level)
-		assert.Equal(t, tc.expected, actual, "Unexpected log level")
+		assert.Equal(t, tc.expected, actual, fmt.Sprintf("Unexpected log level parsed for infot %s", tc.level))
 	}
 }

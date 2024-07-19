@@ -20,12 +20,6 @@ import (
 )
 
 var (
-	Version       string
-	BuildRevision string
-	BuildBranch   string
-	BuildTime     string
-	BuildHost     string
-
 	webConfig     = flag.String("web.config", "", "Path to web configuration file.")
 	configFile    = flag.String("config.file", "config.yml", "Path to configuration file.")
 	listenAddress = flag.String(
@@ -33,8 +27,8 @@ var (
 		":9610",
 		"Address to listen on for web interface and telemetry.",
 	)
-	sc = &SafeConfig{
-		C: &Config{},
+	config = &SafeConfig{
+		Config: &Config{},
 	}
 	reloadCh chan chan error
 )
@@ -43,7 +37,7 @@ func reloadHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" || r.Method == "PUT" {
 			slog.Info("Triggered configuration reload from /-/reload HTTP endpoint")
-			err := sc.ReloadConfig(*configFile)
+			err := config.ReloadConfig(*configFile)
 			if err != nil {
 				slog.Error("failed to reload config file", slog.Any("error", err))
 				http.Error(w, "failed to reload config file", http.StatusInternalServerError)
@@ -84,7 +78,7 @@ func metricsHandler() http.HandlerFunc {
 
 		if ok && len(group[0]) >= 1 {
 			// Trying to get hostConfig from group.
-			if hostConfig, err = sc.HostConfigForGroup(group[0]); err != nil {
+			if hostConfig, err = config.HostConfigForGroup(group[0]); err != nil {
 				slog.Error("error getting credentials", slog.Any("error", err))
 				return
 			}
@@ -92,7 +86,7 @@ func metricsHandler() http.HandlerFunc {
 
 		// Always falling back to single host config when group config failed.
 		if hostConfig == nil {
-			if hostConfig, err = sc.HostConfigForTarget(target); err != nil {
+			if hostConfig, err = config.HostConfigForTarget(target); err != nil {
 				slog.Error("error getting credentials", slog.Any("error", err))
 				return
 			}
@@ -107,20 +101,25 @@ func metricsHandler() http.HandlerFunc {
 		// Delegate http serving to Prometheus client library, which will call collector.Collect.
 		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)
-
 	}
 }
 
 // Parse the log leven from input
 func parseLogLevel(level string) slog.Level {
 	ret := slog.LevelInfo
-	if level == "debug" {
+	switch level {
+	case "debug":
 		ret = slog.LevelDebug
-	} else if level == "warning" {
+	case "info":
+		ret = slog.LevelInfo
+	case "warn":
 		ret = slog.LevelWarn
-	} else if level == "error" {
+	case "error":
 		ret = slog.LevelError
+	default:
+		slog.Warn("Invalid loglevel provided. Fallback to default")
 	}
+
 	return ret
 }
 
@@ -132,14 +131,14 @@ func main() {
 	kitlogger := kitlog.NewLogfmtLogger(os.Stderr)
 
 	// load config  first time
-	if err := sc.ReloadConfig(*configFile); err != nil {
+	if err := config.ReloadConfig(*configFile); err != nil {
 		slog.Error("Error parsing config file", slog.Any("error", err))
 		panic(err)
 	}
 
 	// Setup dinal logger from config
 	opts := &slog.HandlerOptions{
-		Level: parseLogLevel(sc.C.Loglevel),
+		Level: parseLogLevel(config.Config.Loglevel),
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, opts))
 	slog.SetDefault(logger)
@@ -155,13 +154,13 @@ func main() {
 		for {
 			select {
 			case <-hup:
-				if err := sc.ReloadConfig(*configFile); err != nil {
+				if err := config.ReloadConfig(*configFile); err != nil {
 					slog.Error("failed to reload config file", slog.Any("error", err))
 					break
 				}
 				slog.Info("config file reload", slog.String("operation", "sc.ReloadConfig"))
 			case rc := <-reloadCh:
-				if err := sc.ReloadConfig(*configFile); err != nil {
+				if err := config.ReloadConfig(*configFile); err != nil {
 					slog.Error("failed to reload config file", slog.Any("error", err))
 					rc <- err
 					break

@@ -353,7 +353,16 @@ func parseChassisPowerInfoPowerControl(ch chan<- prometheus.Metric, chassisID st
 func parseChassisPowerInfoPowerSupply(ch chan<- prometheus.Metric, chassisID string, chassisPowerInfoPowerSupply redfish.PowerSupply, wg *sync.WaitGroup) {
 	defer wg.Done()
 	chassisPowerInfoPowerSupplyName := chassisPowerInfoPowerSupply.Name
+	// This is optional in some devices causing duplicate metrics
 	chassisPowerInfoPowerSupplyID := chassisPowerInfoPowerSupply.MemberID
+	if chassisPowerInfoPowerSupplyID == "" {
+		slog.Debug("PowerSupply ID is empty, using serial number as ID")
+		chassisPowerInfoPowerSupplyID = chassisPowerInfoPowerSupply.SerialNumber
+		if chassisPowerInfoPowerSupplyID == "" {
+			slog.Error("PowerSupply ID and serial number empty - skipping power supply")
+			return
+		}
+	}
 	chassisPowerInfoPowerSupplyEfficiencyPercent := chassisPowerInfoPowerSupply.EfficiencyPercent
 	chassisPowerInfoPowerSupplyPowerCapacityWatts := chassisPowerInfoPowerSupply.PowerCapacityWatts
 	chassisPowerInfoPowerSupplyPowerInputWatts := chassisPowerInfoPowerSupply.PowerInputWatts

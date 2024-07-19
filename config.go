@@ -17,7 +17,7 @@ type Config struct {
 
 type SafeConfig struct {
 	sync.RWMutex
-	C *Config
+	Config *Config
 }
 
 type HostConfig struct {
@@ -26,19 +26,29 @@ type HostConfig struct {
 	CABundle string `yaml:"ca_bundle"`
 }
 
-func (sc *SafeConfig) ReloadConfig(configFile string) error {
-	var c = &Config{}
-
+// Read exporter config from file
+func NewConfigFromFile(configFile string) (*Config, error) {
+	var config = &Config{}
 	yamlFile, err := os.ReadFile(configFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := yaml.Unmarshal(yamlFile, c); err != nil {
+
+	if err := yaml.Unmarshal(yamlFile, config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+func (sc *SafeConfig) ReloadConfig(configFile string) error {
+	var c, err = NewConfigFromFile(configFile)
+	if err != nil {
 		return err
 	}
 
 	sc.Lock()
-	sc.C = c
+	sc.Config = c
 	sc.Unlock()
 
 	return nil
@@ -47,14 +57,14 @@ func (sc *SafeConfig) ReloadConfig(configFile string) error {
 func (sc *SafeConfig) HostConfigForTarget(target string) (*HostConfig, error) {
 	sc.Lock()
 	defer sc.Unlock()
-	if hostConfig, ok := sc.C.Hosts[target]; ok {
+	if hostConfig, ok := sc.Config.Hosts[target]; ok {
 		return &HostConfig{
 			Username: hostConfig.Username,
 			Password: hostConfig.Password,
 			CABundle: hostConfig.CABundle,
 		}, nil
 	}
-	if hostConfig, ok := sc.C.Hosts["default"]; ok {
+	if hostConfig, ok := sc.Config.Hosts["default"]; ok {
 		return &HostConfig{
 			Username: hostConfig.Username,
 			Password: hostConfig.Password,
@@ -69,7 +79,7 @@ func (sc *SafeConfig) HostConfigForTarget(target string) (*HostConfig, error) {
 func (sc *SafeConfig) HostConfigForGroup(group string) (*HostConfig, error) {
 	sc.Lock()
 	defer sc.Unlock()
-	if hostConfig, ok := sc.C.Groups[group]; ok {
+	if hostConfig, ok := sc.Config.Groups[group]; ok {
 		return &hostConfig, nil
 	}
 	return &HostConfig{}, fmt.Errorf("no credentials found for group %s", group)
@@ -78,7 +88,7 @@ func (sc *SafeConfig) HostConfigForGroup(group string) (*HostConfig, error) {
 func (sc *SafeConfig) AppLogLevel() string {
 	sc.Lock()
 	defer sc.Unlock()
-	logLevel := sc.C.Loglevel
+	logLevel := sc.Config.Loglevel
 	if logLevel != "" {
 		return logLevel
 	}
